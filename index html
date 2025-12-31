@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Aviator Naija</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:#0a0e17;color:#fff;font-family:Arial,sans-serif;overflow:hidden;height:100vh;position:relative;}
+    
+    .header{
+      position:fixed;top:0;left:0;width:100%;background:#111;z-index:100;
+      padding:14px 16px;display:flex;justify-content:space-between;align-items:center;
+      border-bottom:4px solid #00ff88;
+    }
+    .logo{color:#00ff88;font-size:28px;font-weight:bold;}
+    .balance{color:#00ff88;font-size:21px;font-weight:bold;}
+    .deposit-btn,.withdraw-btn{
+      background:#ff0;color:#000;padding:12px 20px;border-radius:50px;
+      font-weight:bold;font-size:16px;border:none;cursor:pointer;box-shadow:0 0 20px rgba(255,255,0,0.5);
+    }
+
+    .game-area{
+      position:fixed;top:68px;bottom:180px;left:0;right:0;
+      background:#0a0e17;overflow:hidden;
+    }
+
+    /* Grid Background */
+    .grid{
+      position:absolute;bottom:0;left:0;width:100%;height:100%;
+      background:
+        repeating-linear-gradient(90deg,transparent,transparent 40px,#ffffff08 40px,#ffffff08 80px),
+        repeating-linear-gradient(0deg,transparent,transparent 40px,#ffffff08 40px,#ffffff08 80px);
+    }
+
+    /* Green Line + Glowing Point */
+    .line-container{
+      position:absolute;bottom:0;left:0;width:100%;height:100%;
+    }
+    .line{
+      position:absolute;bottom:50%;left:0;width:100%;height:4px;
+      background:#00ff88;box-shadow:0 0 30px #00ff88;
+      transform-origin:left center;
+      transform:scaleX(0);
+      transition:transform 0.1s ease-out;
+    }
+    .point{
+      position:absolute;right:0;top:50%;transform:translateY(-50%);
+      width:24px;height:24px;background:#00ff88;border-radius:50%;
+      box-shadow:0 0 50px #00ff88;
+    }
+    .point::before{
+      content:'';position:absolute;top:50%;left:50%;width:12px;height:12px;
+      background:#fff;border-radius:50%;transform:translate(-50%,-50%);
+    }
+
+    .multiplier{
+      position:absolute;top:20px;left:50%;transform:translateX(-50%);
+      font-size:90px;font-weight:bold;color:#00ff88;
+      text-shadow:0 0 40px #00ff88;z-index:10;
+      opacity:0;
+    }
+
+    .cashout-box{
+      position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+      background:#111;border:4px solid #00ff88;border-radius:20px;
+      padding:24px 40px;text-align:center;opacity:0;
+      box-shadow:0 0 70px rgba(0,255,136,0.9);z-index:30;
+      transition:all 0.4s;
+    }
+    .cashout-box.show{opacity:1;top:48%;}
+    .cashed-multi{font-size:70px;color:#00ff88;font-weight:bold;}
+    .cashed-win{font-size:32px;color:#0f0;margin-top:10px;}
+
+    .bet-panel{
+      position:fixed;bottom:0;left:0;width:100%;background:#111;
+      padding:20px;border-top:6px solid #00ff88;z-index:100;
+      display:flex;flex-direction:column;gap:12px;
+    }
+    .bet-row{display:flex;gap:12px;justify-content:center;}
+    .bet-input{
+      flex:1;padding:18px;font-size:24px;text-align:center;
+      background:#222;color:#fff;border:none;border-radius:16px;
+    }
+    .bet-btn{
+      flex:1;padding:18px;font-size:28px;background:#00ff88;color:#000;
+      border:none;border-radius:16px;font-weight:bold;cursor:pointer;
+      box-shadow:0 0 40px #00ff88;
+    }
+    .bet-btn:disabled{background:#004d33;opacity:0.7;}
+
+    .crash{
+      position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+      font-size:150px;color:#ff3366;font-weight:bold;
+      text-shadow:0 0 60px #f00;opacity:0;z-index:99;
+      animation:boom 2s forwards;
+    }
+    @keyframes boom{
+      0%{opacity:0;transform:translate(-50%,-50%) scale(0.1);}
+      40%{opacity:1;transform:translate(-50%,-50%) scale(1.4);}
+      100%{opacity:0;transform:translate(-50%,-50%) scale(3);}
+    }
+
+    .toast{
+      position:fixed;bottom:200px;left:50%;transform:translateX(-50%);
+      background:rgba(0,255,136,0.25);color:#0f0;padding:16px 36px;border-radius:16px;
+      border:3px solid #0f0;z-index:999;font-weight:bold;opacity:0;transition:0.4s;
+    }
+    .toast.show{opacity:1;}
+
+    .auth-container{
+      position:fixed;top:0;left:0;width:100%;height:100%;background:#0a0e17;
+      display:flex;align-items:center;justify-content:center;z-index:200;
+    }
+    .auth-box{
+      background:#111;padding:40px;border-radius:24px;width:90%;max-width:420px;
+      border:4px solid #00ff88;text-align:center;
+    }
+    .auth-box input{
+      width:100%;padding:18px;margin:12px 0;border-radius:14px;
+      background:#222;color:#fff;border:none;font-size:20px;
+    }
+    .auth-box button{
+      width:100%;padding:18px;margin:12px 0;border:none;border-radius:14px;
+      background:#00ff88;color:#000;font-weight:bold;font-size:20px;cursor:pointer;
+    }
+    .auth-box a{color:#00ff88;cursor:pointer;}
+  </style>
+  <script src="https://js.paystack.co/v1/inline.js"></script>
+</head>
+<body>
+
+  <!-- Auth Screen -->
+  <div class="auth-container" id="auth">
+    <div class="auth-box">
+      <h2 style="color:#00ff88;">Aviator Login</h2>
+      <div id="loginSection">
+        <input type="text" id="loginPhone" placeholder="Phone Number (11 digits)" maxlength="11" />
+        <input type="password" id="loginPin" placeholder="6-digit PIN" maxlength="6" />
+        <button onclick="login()">Login</button>
+        <p>Don't have an account? <a onclick="toggleAuth('register')">Register</a></p>
+      </div>
+
+      <div id="registerSection" style="display:none;">
+        <h2 style="color:#00ff88;">Register</h2>
+        <input type="text" id="regName" placeholder="Full Name" />
+        <input type="text" id="regPhone" placeholder="Phone Number (11 digits)" maxlength="11" />
+        <input type="password" id="regPin" placeholder="6-digit PIN" maxlength="6" />
+        <button onclick="register()">Register</button>
+        <p>Already have an account? <a onclick="toggleAuth('login')">Login</a></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Game -->
+  <div id="game" style="display:none;">
+    <div class="header">
+      <div class="logo">Aviator</div>
+      <div class="balance">₦<span id="balance">500</span></div>
+      <button class="deposit-btn" id="depositBtn">Deposit</button>
+      <button class="withdraw-btn" id="withdrawBtn">Withdraw</button>
+      <button style="background:#666;padding:10px 15px;border-radius:50px;" onclick="logout()">Logout</button>
+    </div>
+
+    <div class="game-area">
+      <div class="grid"></div>
+      <div class="line-container">
+        <div class="line" id="line">
+          <div class="point"></div>
+        </div>
+      </div>
+      <div class="multiplier" id="multiplier"></div>
+      
+      <div class="cashout-box" id="cashedBox">
+        <div class="cashed-multi" id="cashedMulti">1.00x</div>
+        <div class="cashed-win" id="cashedWin">₦0</div>
+        <div style="margin-top:12px;font-size:20px;color:#888;">Cashed Out</div>
+      </div>
+    </div>
+
+    <div class="bet-panel">
+      <div class="bet-row">
+        <input type="number" id="betAmount" value="1000" placeholder="Bet Amount">
+        <button class="bet-btn" id="betBtn">BET</button>
+      </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <!-- Deposit Section (min ₦1,000) -->
+    <div id="depositDiv" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.95);z-index:1000;align-items:center;justify-content:center;">
+      <div style="background:#111;padding:40px;border-radius:24px;width:90%;max-width:420px;border:4px solid #00ff88;text-align:center;">
+        <h2 style="color:#00ff88;margin-bottom:20px;">Deposit (min ₦1,000)</h2>
+        <input type="email" id="depositEmail" placeholder="Your Email (required)" />
+        <input type="number" id="depositAmount" placeholder="Amount ₦ (min 1000)" min="1000" />
+        <button style="background:#00ff88;color:#000;margin:15px 0;" onclick="payWithPaystack()">Pay Now</button>
+        <button style="background:#666;color:#fff;" onclick="hideDeposit()">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Withdraw Section - NO MINIMUM -->
+    <div id="withdrawDiv" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.95);z-index:1000;align-items:center;justify-content:center;">
+      <div style="background:#111;padding:40px;border-radius:24px;width:90%;max-width:420px;border:4px solid #00ff88;text-align:center;">
+        <h2 style="color:#00ff88;margin-bottom:20px;">Withdraw to Bank (no minimum)</h2>
+        <input type="text" id="withdrawBank" placeholder="Bank Name (e.g. Opay, Access)" />
+        <input type="text" id="withdrawAccount" placeholder="Account Number" />
+        <input type="text" id="withdrawName" placeholder="Account Name" />
+        <input type="number" id="withdrawAmount" placeholder="Amount ₦" min="1" />
+        <button style="background:#00ff88;color:#000;margin:15px 0;" onclick="doWithdraw()">Withdraw Now</button>
+        <button style="background:#666;color:#fff;" onclick="hideWithdraw()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <audio id="fly" loop preload="auto">
+    <source src="https://cdn.pixabay.com/download/audio/2023/08/22/audio_8e9d8b8a32.mp3" type="audio/mp3">
+  </audio>
+  <audio id="crash" preload="auto">
+    <source src="https://assets.mixkit.co/sfx/preview/mixkit-big-explosion-with-debris-1681.mp3" type="audio/mp3">
+  </audio>
+
+  <script>
+    let currentUser = null;
+    let balance = 0;
+    let betValue = 0, multiplier = 1.0, crashPoint = 0;
+    let betting = false, cashed = false, interval;
+
+    const el = {
+      balance: document.getElementById("balance"),
+      betBtn: document.getElementById("betBtn"),
+      input: document.getElementById("betAmount"),
+      line: document.getElementById("line"),
+      multi: document.getElementById("multiplier"),
+      cashedMulti: document.getElementById("cashedMulti"),
+      cashedWin: document.getElementById("cashedWin"),
+      cashedBox: document.getElementById("cashedBox"),
+      toast: document.getElementById("toast"),
+      fly: document.getElementById("fly"),
+      crash: document.getElementById("crash")
+    };
+
+    function toast(msg){ el.toast.textContent=msg; el.toast.classList.add("show"); setTimeout(()=>el.toast.classList.remove("show"),4000); }
+
+    function toggleAuth(section) {
+      document.getElementById('loginSection').style.display = section === 'login' ? 'block' : 'none';
+      document.getElementById('registerSection').style.display = section === 'register' ? 'block' : 'none';
+    }
+
+    function register() {
+      const name = document.getElementById('regName').value.trim();
+      const phone = document.getElementById('regPhone').value.trim();
+      const pin = document.getElementById('regPin').value;
+
+      if (!name || phone.length !== 11 || pin.length !== 6) {
+        toast("Invalid details");
+        return;
+      }
+      if (localStorage.getItem("aviator_user_" + phone)) {
+        toast("Phone registered already");
+        return;
+      }
+
+      const user = { name, phone, pin, balance: 500 }; // Welcome Bonus ₦500
+      localStorage.setItem("aviator_user_" + phone, JSON.stringify(user));
+      toast("Registered! ₦500 welcome bonus added.");
+      toggleAuth('login');
+    }
+
+    function login() {
+      const phone = document.getElementById('loginPhone').value.trim();
+      const pin = document.getElementById('loginPin').value;
+
+      const stored = localStorage.getItem("aviator_user_" + phone);
+      if (!stored) {
+        toast("User not found");
+        return;
+      }
+
+      const user = JSON.parse(stored);
+      if (user.pin !== pin) {
+        toast("Wrong PIN");
+        return;
+      }
+
+      currentUser = user;
+      balance = user.balance;
+      document.getElementById('auth').style.display = 'none';
+      document.getElementById('game').style.display = 'block';
+      el.balance.textContent = balance.toLocaleString();
+    }
+
+    function logout() {
+      if (currentUser) {
+        currentUser.balance = balance;
+        localStorage.setItem("aviator_user_" + currentUser.phone, JSON.stringify(currentUser));
+      }
+      currentUser = null;
+      document.getElementById('game').style.display = 'none';
+      document.getElementById('auth').style.display = 'flex';
+      toggleAuth('login');
+    }
+
+    // Deposit Button
+    document.getElementById("depositBtn").onclick = () => document.getElementById("depositDiv").style.display = "flex";
+
+    function hideDeposit() {
+      document.getElementById("depositDiv").style.display = "none";
+    }
+
+    // Paystack Deposit - Min ₦1,000
+    function payWithPaystack() {
+      const email = document.getElementById('depositEmail').value.trim();
+      const amountInput = document.getElementById('depositAmount').value;
+      const amount = parseFloat(amountInput);
+
+      if (!email || !amountInput || amount < 1000) {
+        toast("Valid email & amount ≥ ₦1,000 required");
+        return;
+      }
+
+      const handler = PaystackPop.setup({
+        key: 'pk_live_674b3921515dbeca106c237ee8ea2c3b27481e09',
+        email: email,
+        amount: amount * 100,
+        currency: 'NGN',
+        ref: 'aviator_dep_' + Date.now(),
+        callback: function(response) {
+          balance += amount;
+          currentUser.balance = balance;
+          localStorage.setItem("aviator_user_" + currentUser.phone, JSON.stringify(currentUser));
+          el.balance.textContent = balance.toLocaleString();
+          toast("Deposit successful! ₦" + amount.toLocaleString() + " added.");
+          hideDeposit();
+        },
+        onClose: function() {
+          toast("Deposit cancelled");
+        }
+      });
+      handler.openIframe();
+    }
+
+    // Withdraw Button - NO MINIMUM
+    document.getElementById("withdrawBtn").onclick = () => {
+      if (balance <= 0) return toast("No balance to withdraw");
+      document.getElementById("withdrawDiv").style.display = "flex";
+    };
+
+    function hideWithdraw() {
+      document.getElementById("withdrawDiv").style.display = "none";
+    }
+
+    window.doWithdraw = () => {
+      const bank = document.getElementById('withdrawBank').value.trim();
+      const acct = document.getElementById('withdrawAccount').value.trim();
+      const name = document.getElementById('withdrawName').value.trim();
+      const amtInput = document.getElementById('withdrawAmount').value;
+      const amt = parseFloat(amtInput);
+
+      if (!bank || !acct || !name || !amtInput || amt <= 0 || amt > balance) {
+        toast("Fill all fields correctly & valid amount");
+        return;
+      }
+
+      balance -= amt;
+      currentUser.balance = balance;
+      localStorage.setItem("aviator_user_" + currentUser.phone, JSON.stringify(currentUser));
+      el.balance.textContent = balance.toLocaleString();
+      toast(`Withdrawal of ₦\( {amt.toLocaleString()} requested to \){bank}`);
+      hideWithdraw();
+    };
+
+    // Game Logic
+    el.betBtn.onclick = () => {
+      if (balance <= 500) return toast("Deposit minimum ₦1,000 to play!");
+      if (!betting) {
+        betValue = parseFloat(el.input.value) || 0;
+        if (betValue < 100 || betValue > balance) return toast("Invalid bet!");
+        balance -= betValue;
+        el.balance.textContent = balance.toLocaleString();
+        betting = true; cashed = false;
+        el.betBtn.textContent = "CASH OUT";
+        el.cashedBox.classList.remove("show");
+        el.line.style.transform = "scaleX(0)";
+        el.multi.style.opacity = 1;
+        start();
+      } else if (!cashed) {
+        let win = Math.floor(betValue * multiplier);
+        balance += win;
+        el.balance.textContent = balance.toLocaleString();
+        cashed = true;
+        el.betBtn.textContent = "Cashed Out " + multiplier.toFixed(2) + "x";
+        el.betBtn.disabled = true;
+        el.fly.pause();
+        el.cashedBox.classList.add("show");
+        el.cashedMulti.textContent = multiplier.toFixed(2) + "x";
+        el.cashedWin.textContent = "₦" + win.toLocaleString();
+      }
+    };
+
+    function start(){
+      multiplier = 1.0;
+      crashPoint = +(Math.random()*18 + 1.05).toFixed(2);
+      el.multi.textContent = multiplier.toFixed(2)+"x";
+      el.fly.currentTime = 0; el.fly.play();
+
+      let variation = 0;
+
+      interval = setInterval(()=>{
+        multiplier += 0.03 + Math.random()*0.05;
+        let p = Math.min((multiplier-1)/(crashPoint-1),1);
+        variation = Math.sin(Date.now()/150)*8;
+        let angle = p*78 + variation;
+        let scale = p*1.9;
+
+        el.line.style.transform = `scaleX(\( {scale}) rotate( \){angle}deg)`;
+        el.multi.textContent = multiplier.toFixed(2)+"x";
+
+        if(!cashed){
+          let pot = Math.floor(betValue*multiplier);
+          el.cashedWin.textContent = "₦"+pot.toLocaleString();
+          el.cashedMulti.textContent = multiplier.toFixed(2)+"x";
+        }
+
+        if(multiplier >= crashPoint) end();
+      },100);
+    }
+
+    function end(){
+      clearInterval(interval);
+      el.fly.pause(); el.crash.currentTime=0; el.crash.play();
+
+      let boom = document.createElement("div");
+      boom.className="crash"; boom.textContent="CRASH!";
+      document.body.appendChild(boom);
+
+      if(!cashed){
+        el.betBtn.textContent = "Crashed "+multiplier.toFixed(2)+"x";
+        toast("You lost ₦"+betValue.toLocaleString());
+      }
+
+      setTimeout(()=>{boom.remove(); reset();},3200);
+    }
+
+    function reset(){
+      betting = cashed = false;
+      el.line.style.transform = "scaleX(0)";
+      el.cashedBox.classList.remove("show");
+      el.multi.style.opacity = 0;
+      setTimeout(()=>{
+        el.betBtn.textContent = "BET";
+        el.betBtn.disabled = false;
+      },600);
+    }
+  </script>
+</body>
+</html>
